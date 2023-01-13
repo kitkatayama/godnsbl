@@ -41,7 +41,7 @@ func main() {
 	wg.Wait()
 
 	enc := json.NewEncoder(os.Stdout)
-	if err := enc.Encode(&results); err != nil {
+	if err := enc.Encode(&results[0]); err != nil {
 		log.Println(err)
 	}
 }
