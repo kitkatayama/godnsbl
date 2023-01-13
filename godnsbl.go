@@ -9,7 +9,6 @@ package godnsbl
 import (
 	"fmt"
 	"net"
-	"regexp"
 	"strings"
 )
 
@@ -116,8 +115,8 @@ type Result struct {
 	Rbl string `json:"rbl"`
 	// Address is the IP address that was searched
 	Address string `json:"address"`
-	// Listed indicates whether or not the IP was on the RBL
-	Listed bool `json:"listed"`
+	// A indicates A record
+	A string `json:"a"`
 	// RBL lists sometimes add extra information as a TXT record
 	// if any info is present, it will be stored here.
 	Text string `json:"text"`
@@ -147,7 +146,7 @@ func Reverse(ip net.IP) string {
 }
 
 func query(rbl string, host string, r *Result) {
-	r.Listed = false
+	r.A = ""
 	r.Rbl = rbl
 
 	lookup := fmt.Sprintf("%s.%s", host, rbl)
@@ -156,16 +155,19 @@ func query(rbl string, host string, r *Result) {
 	if len(res) > 0 {
 
 		for _, ip := range res {
-			m, _ := regexp.MatchString("^127.0.0.*", ip)
-
-			if m == true {
-				r.Listed = true
-			}
+			r.A = ip
+			//m, _ := regexp.MatchString("^127.0.0.*", ip)
+			//if m == true {
+			//	r.A = true
+			//}
 		}
 
-		txt, _ := net.LookupTXT(lookup)
-		if len(txt) > 0 {
-			r.Text = txt[0]
+		//check TXT record only if A record exists
+		if r.A != "" {
+			txt, _ := net.LookupTXT(lookup)
+			if len(txt) > 0 {
+				r.Text = txt[0]
+			}
 		}
 	}
 	if err != nil {
