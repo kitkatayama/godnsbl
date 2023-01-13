@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/json"
+	"net"
 
 	"fmt"
 	"log"
@@ -18,30 +20,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	ip := os.Args[2]
+	ip, netmask, _ := net.ParseCIDR(os.Args[2])
 	bl := os.Args[1]
-
+	ipHead := ip.To4()
+	num := int(^binary.BigEndian.Uint32(netmask.Mask) + 1)
 	wg := &sync.WaitGroup{}
-	results := make([]godnsbl.Result, 1)
-	i := 0
-	source := bl
-	//for i, source := range godnsbl.Blacklists {
-	wg.Add(1)
-	go func(i int, source string) {
-		defer wg.Done()
-		rbl := godnsbl.Lookup(source, ip)
-		if len(rbl.Results) == 0 {
-			results[i] = godnsbl.Result{}
-		} else {
-			results[i] = rbl.Results[0]
-		}
-	}(i, source)
-	//}
 
+	results := make([]godnsbl.Result, num)
+
+	for i := 0; i < num; i++ {
+		ip := make(net.IP, len(ipHead))
+		copy(ip, ipHead)
+
+		binary.BigEndian.PutUint32(ip, binary.BigEndian.Uint32(ip.To4())+uint32(i))
+		wg.Add(1)
+		go func(i int, ip net.IP) {
+			defer wg.Done()
+			rbl := godnsbl.Lookup(bl, ip.String())
+			if len(rbl.Results) == 0 {
+				results[i] = godnsbl.Result{}
+			} else {
+				results[i] = rbl.Results[0]
+			}
+		}(i, ip)
+	}
 	wg.Wait()
 
 	enc := json.NewEncoder(os.Stdout)
-	if err := enc.Encode(&results[0]); err != nil {
+	if err := enc.Encode(&results); err != nil {
 		log.Println(err)
 	}
 }
