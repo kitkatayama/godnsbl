@@ -1,4 +1,6 @@
-# godnsbl [![Travis-CI](https://travis-ci.org/mrichman/godnsbl.svg)](https://travis-ci.org/mrichman/godnsbl) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Go Report Card](https://goreportcard.com/badge/github.com/mrichman/godnsbl)](https://goreportcard.com/report/github.com/mrichman/godnsbl)
+# godnsbl(modded) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+originally [mrichman/godnsbl](https://github.com/mrichman/godnsbl), added to specify target dns server
 
 Package godnsbl lets you perform RBL (Real-time Blackhole List - https://en.wikipedia.org/wiki/DNSBL)
 lookups using Go.
@@ -8,16 +10,14 @@ The command-line tool in `cmd` demonstrates the use of [goroutines](https://tour
 To test:
 
 ```
-git clone https://github.com/mrichman/godnsbl
+git clone https://github.com/kitkatayama/godnsbl
 cd godnsbl/cmd/godnsbl
-go run main.go 127.0.0.2
+go run main.go b.barracudacentral.org 127.0.0.2
 ```
 
 The output will be a JSON-formatted list of results with the following fields:
 
 ```
-[
-...
 {
   "rbl": "b.barracudacentral.org",
   "address": "127.0.0.2",
@@ -26,6 +26,4 @@ The output will be a JSON-formatted list of results with the following fields:
   "error": false,
   "error_type": null
 }
-...
-]
 ```
