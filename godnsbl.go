@@ -73,10 +73,6 @@ func query(rbl string, host string, r *Result) {
 
 		for _, ip := range res {
 			r.A = ip
-			//m, _ := regexp.MatchString("^127.0.0.*", ip)
-			//if m == true {
-			//	r.A = true
-			//}
 		}
 
 		//check TXT record only if A record exists
