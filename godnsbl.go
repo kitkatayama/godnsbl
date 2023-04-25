@@ -7,9 +7,11 @@ JSON annotations on the types are provided as a convenience.
 package godnsbl
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 /*
@@ -62,13 +64,24 @@ func Reverse(ip net.IP) string {
 	return strings.Join(splitAddress, ".")
 }
 
-func query(rbl string, host string, r *Result) {
+func query(dnsbl string, host string, r *Result, targetResolver string) {
 	r.A = ""
-	r.Rbl = rbl
+	r.Rbl = dnsbl
 
-	lookup := fmt.Sprintf("%s.%s", host, rbl)
+	// https://stackoverflow.com/questions/59889882/specifying-dns-server-for-lookup-in-go/
+	resolver := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout: time.Millisecond * time.Duration(10000),
+			}
+			return d.DialContext(ctx, network, targetResolver+":53")
+		},
+	}
 
-	res, err := net.LookupHost(lookup)
+	lookup := fmt.Sprintf("%s.%s", host, dnsbl)
+
+	res, err := resolver.LookupHost(context.Background(), lookup)
 	if len(res) > 0 {
 
 		for _, ip := range res {
@@ -77,7 +90,7 @@ func query(rbl string, host string, r *Result) {
 
 		//check TXT record only if A record exists
 		if r.A != "" {
-			txt, _ := net.LookupTXT(lookup)
+			txt, _ := resolver.LookupTXT(context.Background(), lookup)
 			if len(txt) > 0 {
 				r.Text = txt[0]
 			}
@@ -94,8 +107,8 @@ func query(rbl string, host string, r *Result) {
 /*
 Lookup performs the search and returns the RBLResults
 */
-func Lookup(rblList string, targetHost string) (r RBLResults) {
-	r.List = rblList
+func Lookup(dnsbl string, targetHost string, resolver string) (r RBLResults) {
+	r.List = dnsbl
 	r.Host = targetHost
 
 	if ip, err := net.LookupIP(targetHost); err == nil {
@@ -106,8 +119,7 @@ func Lookup(rblList string, targetHost string) (r RBLResults) {
 
 				addr := Reverse(addr)
 
-				query(rblList, addr, &res)
-
+				query(dnsbl, addr, &res, resolver)
 				r.Results = append(r.Results, res)
 			}
 		}
@@ -115,4 +127,28 @@ func Lookup(rblList string, targetHost string) (r RBLResults) {
 		r.Results = append(r.Results, Result{})
 	}
 	return
+}
+
+func Nsservers(dnsbl string) []string {
+	nameservers, _ := net.LookupNS(dnsbl)
+	ns := NStoStrings(nameservers)
+	return StringsToIPs(ns)
+}
+
+func NStoStrings(ns []*net.NS) []string {
+	s := make([]string, len(ns))
+	for n := range ns {
+		s[n] = ns[n].Host
+	}
+	return s
+}
+
+func StringsToIPs(ns []string) []string {
+	ips := make([]string, len(ns))
+	for i := range ns {
+		name := ns[i]
+		ip, _ := net.LookupHost(name)
+		ips[i] = ip[0]
+	}
+	return ips
 }

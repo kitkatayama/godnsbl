@@ -33,16 +33,18 @@ func main() {
 		copy(ip, ipHead)
 
 		binary.BigEndian.PutUint32(ip, binary.BigEndian.Uint32(ip.To4())+uint32(i))
+		resolvers := godnsbl.Nsservers(bl)
+
 		wg.Add(1)
-		go func(i int, ip net.IP) {
+		go func(i int, ip net.IP, resolvers []string) {
 			defer wg.Done()
-			rbl := godnsbl.Lookup(bl, ip.String())
+			rbl := godnsbl.Lookup(bl, ip.String(), resolvers[i%len(resolvers)])
 			if len(rbl.Results) == 0 {
 				results[i] = godnsbl.Result{}
 			} else {
 				results[i] = rbl.Results[0]
 			}
-		}(i, ip)
+		}(i, ip, resolvers)
 	}
 	wg.Wait()
 
